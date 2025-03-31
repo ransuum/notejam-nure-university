@@ -15,7 +15,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    app = docker.build("ransuum/pipeline:${env.BUILD_ID}")
+                    def app = docker.build("ransuum/pipeline:${env.BUILD_ID}")
+                    env.APP_IMAGE = app.id
                 }
             }
         }
@@ -23,15 +24,15 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
-                        app.push("${env.BUILD_ID}")
-                        app.push("latest")
+                        docker.image(env.APP_IMAGE).push("${env.BUILD_ID}")
+                        docker.image(env.APP_IMAGE).push("latest")
                     }
                 }
             }
         }
         stage('Deploy to Kubernetes') {
             steps {
-                sh "kubectl apply -f deployment.yaml"
+                bat "kubectl apply -f deployment.yaml"
             }
         }
     }
