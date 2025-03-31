@@ -126,7 +126,7 @@ spec:
     spec:
       containers:
         - name: notejam
-          image: arshad1914/pipeline:latest
+          image: ransuum/pipeline:latest
           args:
             - bash
             - -c
