@@ -4,7 +4,7 @@ pipeline {
 		PROJECT_ID = 'docker'
         CLUSTER_NAME = 'jenkins'
         LOCATION = 'us-central-1a'
-        CREDENTIALS_ID = 'Kubernetes'
+        CREDENTIALS_ID = 'kubernetes'
     }
     stages {
 		stage('Checkout') {
