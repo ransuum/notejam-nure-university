@@ -15,7 +15,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    app = docker.build("zetzo/pipeline:${env.BUILD_ID}")
+                    app = docker.build("ransuum/pipeline:${env.BUILD_ID}")
                 }
             }
         }
