@@ -1,0 +1,159 @@
+# Persistent Volume Claim (PVC) for Database
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-db
+  labels:
+    service: data-db
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+# ConfigMap for Database
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  labels:
+    service: db
+data:
+  db-name: "nj"
+
+---
+# Secret for Database Credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: notejam-credentials
+type: Opaque
+data:
+  user: YWRtaW4=  # base64-encoded "admin"
+  password: YWRtaW5AMTIz  # base64-encoded "admin@123"
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  labels:
+    service: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: db
+  template:
+    metadata:
+      labels:
+        service: db
+        tier: backend
+    spec:
+      containers:
+        - name: database
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: notejam-credentials
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notejam-credentials
+                  key: password
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: db-name
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: data-db
+      volumes:
+        - name: data-db
+          persistentVolumeClaim:
+            claimName: data-db
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    service: db
+spec:
+  ports:
+    - name: "5432"
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+  selector:
+    service: db
+
+---
+# Web Application Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    service: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: web
+  template:
+    metadata:
+      labels:
+        service: web
+    spec:
+      containers:
+        - name: notejam
+          image: arshad1914/pipeline:latest
+          args:
+            - bash
+            - -c
+            - python manage.py syncdb --noinput && python manage.py migrate && python manage.py runserver 0.0.0.0:5000
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 250Mi
+
+---
+# Web Application Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    service: web
+spec:
+  type: LoadBalancer
+  ports:
+    - name: "5000"
+      port: 5000
+      targetPort: 5000
+  selector:
+    service: web
